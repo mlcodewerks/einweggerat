@@ -39,7 +39,7 @@ public:
                             BOOL & /*bHandled*/) {
     // CString verinf0 = SVN_REVISION;
     CString date = "Built on " __DATE__ " at " __TIME__ " (GMT+10)";
-    CString verinfo = "public build " GIT_VERSION;
+    CString verinfo = "private build ";
 
     CString greetz;
 
@@ -67,12 +67,13 @@ public:
     greetz += "Greetz:\r\n";
     greetz += "Higor Eurípedes\r\n";
     greetz += "Andre Leiradella\r\n";
-    greetz += "Daniel De Matteis\r\n";
     greetz += "Andrés Suárez\r\n";
     greetz += "Brad Parker\r\n";
-    greetz += "Chris Snowhill\r\n";
     greetz += "Hunter Kaller\r\n";
     greetz += "Alfred Agrell\r\n";
+    greetz += "Lars Viklund\r\n";
+    greetz += "Vicki \"Chastity" "\r\n";
+    greetz += "Piotr Pawlowski\r\n";
 
     greets.SetWindowText(greetz);
     website.SubclassWindow(GetDlgItem(IDC_LINK));
