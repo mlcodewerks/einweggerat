@@ -1,0 +1,7 @@
+.DS_Store
+xcuserdata
+/build
+/build.*
+/spessasynth_core/build
+/spessasynth_core/build.*
+/spessasynth_core/vcpkg_installed

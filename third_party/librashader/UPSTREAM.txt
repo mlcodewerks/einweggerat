@@ -1,0 +1,4 @@
+https://github.com/SnowflakePowered/librashader
+Revision: 07ac790cdb9826f37cf8e1daf5011f03e3c4daa7
+Checked: 19 November 2026
+Source subset; see ../UPSTREAM.md for integration notes.

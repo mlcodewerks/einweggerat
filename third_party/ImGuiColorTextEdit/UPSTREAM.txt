@@ -1,0 +1,4 @@
+https://github.com/goossens/ImGuiColorTextEdit
+Revision: 9f812a0b772e6c60c86c295a78a9fcdb2df6d59a
+Checked: 19 November 2026
+Source subset; see ../UPSTREAM.md for integration notes.
