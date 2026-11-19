@@ -244,6 +244,7 @@ int main() {
             dsp_chain_window dsp_window;
             bool choosing = false, show_cores = false;
             std::vector<CoreInfo> candidates;
+            int selected_candidate = 0;
             fs::path choice_content;
             bool running = true, settings = false, input_settings = false, options = false, logs = false, fast_forward = false;
             unsigned slot = 0;
@@ -274,6 +275,7 @@ int main() {
                             "Multiple cores support this content; specify --core or choose one in the UI.");
                     choice_content = path;
                     candidates = std::move(matches);
+                    selected_candidate = 0;
                     choosing = true;
                 }
             };
@@ -502,21 +504,31 @@ int main() {
                 }
                 if (choosing) {
                     ImGui::OpenPopup("Select a core");
+                    ImGui::SetNextWindowSizeConstraints(
+                        ImVec2(io.DisplaySize.x * 0.3f, io.DisplaySize.y * 0.3f),
+                        ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f));
+                    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
+                                            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
                     if (ImGui::BeginPopupModal("Select a core", &choosing,
                                                ImGuiWindowFlags_AlwaysAutoResize)) {
-                        ImGui::TextWrapped("%s", choice_content.u8string().c_str());
-                        for (const auto &candidate : candidates) {
-                            auto label = candidate.name + "###" + candidate.path.u8string();
-                            if (ImGui::Selectable(label.c_str())) {
-                                queue_load(candidate.path, choice_content);
-                                choosing = false;
-                                ImGui::CloseCurrentPopup();
-                            }
-                        }
-                        if (ImGui::Button("Cancel")) {
+                        selected_candidate = std::clamp(selected_candidate, 0, int(candidates.size()) - 1);
+                        ImGui::ListBox(
+                            "Select a core", &selected_candidate,
+                            [](void *data, int index) -> const char * {
+                                return static_cast<const std::vector<CoreInfo> *>(data)->at(index).name.c_str();
+                            },
+                            &candidates, int(candidates.size()));
+                        if (ImGui::Button("OK")) {
+                            queue_load(candidates[selected_candidate].path, choice_content);
                             choosing = false;
                             ImGui::CloseCurrentPopup();
                         }
+                        ImGui::Bullet();
+                        ImGui::SameLine();
+                        ImGui::TextWrapped("einweggerat couldn't determine the core to use.");
+                        ImGui::Bullet();
+                        ImGui::SameLine();
+                        ImGui::TextWrapped("Choose the specific core to load the ROM/ISO.");
                         ImGui::EndPopup();
                     }
                 }
