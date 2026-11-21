@@ -1,4 +1,5 @@
 #include "core.h"
+#include "core_library.h"
 #include "native.h"
 #include "shader_chain.h"
 #include "vfs.h"
@@ -8,7 +9,7 @@
 #include <fstream>
 #include <iomanip>
 struct Core::Api {
-    HMODULE module = nullptr;
+    std::unique_ptr<CoreLibrary> module;
     decltype(&retro_init) init = nullptr;
     decltype(&retro_deinit) deinit = nullptr;
     decltype(&retro_api_version) version = nullptr;
@@ -30,12 +31,8 @@ struct Core::Api {
     decltype(&retro_unserialize) unserialize = nullptr;
     decltype(&retro_get_memory_data) memory = nullptr;
     decltype(&retro_get_memory_size) memory_size = nullptr;
-    ~Api() {
-        if (module)
-            FreeLibrary(module);
-    }
     template <class T> void bind(T &target, const char *name) {
-        target = reinterpret_cast<T>(GetProcAddress(module, name));
+        target = reinterpret_cast<T>(module->symbol(name));
         if (!target)
             throw std::runtime_error(std::string("Missing core export: ") + name);
     }
@@ -92,11 +89,7 @@ void Core::load(const fs::path &library, const fs::path &content) {
     supports_no_game = false;
     try {
         api = std::make_unique<Api>();
-        api->module = LoadLibraryExW(core_path.c_str(), nullptr,
-                                     LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-        if (!api->module)
-            throw std::runtime_error("Cannot load Windows x64 core: " + core_path_utf8 + " (" +
-                                     std::to_string(GetLastError()) + ")");
+        api->module = std::make_unique<CoreLibrary>(core_path);
 #define BIND(field, name) api->bind(api->field, "retro_" name)
         BIND(init, "init");
         BIND(deinit, "deinit");

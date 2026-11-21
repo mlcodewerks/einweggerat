@@ -1,5 +1,7 @@
 /build/
 /build-updated/
+/build-zip/
+/build-loader-*/
 /dist/
 /system/
 /saves/

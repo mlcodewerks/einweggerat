@@ -13,7 +13,7 @@ def main():
     files = [root / name for name in (
         '.clang-format', '.gitignore', 'LICENSE', 'README.md', 'THIRD_PARTY.md',
         'meson.build', 'build.ps1')]
-    for name in ('src', 'third_party', 'tests', 'tools'):
+    for name in ('src', 'third_party', 'tests', 'tools', 'loader'):
         directory = root / name
         for path in [directory, *directory.rglob('*')]:
             if path.is_symlink() or getattr(path, 'is_junction', lambda: False)():

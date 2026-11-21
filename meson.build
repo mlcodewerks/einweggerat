@@ -24,7 +24,7 @@ spessa_lib = static_library('spessasynth', spessa_sources, include_directories: 
 deps += declare_dependency(link_with: spessa_lib, include_directories: spessa_inc)
 subdir('third_party/libretro-dsp')
 deps += dsp_dep
-platform = static_library('platform', ['src/common.cpp', 'src/command_line.cpp', 'src/log.cpp', 'src/log_window.cpp', 'src/core_catalog.cpp', 'src/core_options_window.cpp', 'src/rom_browser.cpp', 'src/ui_fonts.cpp', 'src/video.cpp', 'src/out_vulkan.cpp', 'src/audio.cpp', 'src/input.cpp', 'src/input_bindings.cpp', 'src/input_model.cpp', 'src/input_window.cpp', 'src/vfs.cpp', 'src/midi.cpp',
+platform = static_library('platform', ['src/core_library.cpp', 'third_party/MemoryModulePP.c', 'third_party/miniz.c', 'src/common.cpp', 'src/command_line.cpp', 'src/log.cpp', 'src/log_window.cpp', 'src/core_catalog.cpp', 'src/core_options_window.cpp', 'src/rom_browser.cpp', 'src/ui_fonts.cpp', 'src/video.cpp', 'src/out_vulkan.cpp', 'src/audio.cpp', 'src/input.cpp', 'src/input_bindings.cpp', 'src/input_model.cpp', 'src/input_window.cpp', 'src/vfs.cpp', 'src/midi.cpp',
   'src/shader_chain.cpp', 'src/shader_chain_window.cpp', 'src/shader_source_editor.cpp', 'third_party/ImGuiColorTextEdit/TextEditor.cpp',
   'src/shader_library.cpp', 'src/shader_runtime.cpp', 'src/shader_gl.cpp', 'src/shader_diagnostics.cpp', 'src/shader_source_io.cpp', 'src/dsp_chain.cpp', 'src/dsp_chain_window.cpp',
   'third_party/graphics/glad.cpp', 'third_party/graphics/volk.c',
@@ -50,6 +50,20 @@ checks = executable('native-tests', 'tests/native_tests.cpp', include_directorie
 input_tests = executable('input-tests', 'tests/input_tests.cpp', include_directories: inc, link_with: platform, dependencies: deps)
 test('native-input-bindings', input_tests, args: [meson.current_build_dir() / 'input-test'], timeout: 30)
 subdir('tests')
+memory_fixture = shared_library('memory-fixture', ['tests/memory_fixture.cpp', 'tests/memory_seh_fixture.S'], vs_module_defs: 'tests/memory_exports.def', include_directories: inc, name_prefix: '')
+memory_large_fixture = shared_library('memory-large-fixture', ['tests/memory_fixture.cpp', 'tests/memory_seh_fixture.S'],
+  vs_module_defs: 'tests/memory_exports.def', cpp_args: ['-DFIXTURE_LARGE_TLS'], include_directories: inc, name_prefix: '')
+memory_failed_fixture = shared_library('memory-failed-fixture', ['tests/memory_fixture.cpp', 'tests/memory_seh_fixture.S'],
+  vs_module_defs: 'tests/memory_exports.def', cpp_args: ['-DFIXTURE_FAIL_ATTACH'], include_directories: inc, name_prefix: '')
+memory_tests = executable('memory-loader-tests', 'tests/memory_loader_tests.cpp', include_directories: inc, link_with: platform, dependencies: deps, link_args: ['-municode'])
+memory_dependency = shared_library('memory-dependency', 'tests/memory_dependency.cpp', name_prefix: '')
+memory_package = shared_library('memory-package', 'tests/memory_package.cpp', include_directories: inc, link_with: memory_dependency, name_prefix: '')
+test('memory-loader-tls-exceptions', memory_tests, args: ['--fixture', memory_fixture.full_path()], timeout: 30)
+test('memory-loader-large-tls', memory_tests, args: ['--fixture', memory_large_fixture.full_path()], depends: [memory_fixture], timeout: 30)
+test('memory-loader-failed-attach', memory_tests, args: ['--reject', memory_failed_fixture.full_path()], depends: [memory_fixture], timeout: 30)
+test('zip-cores-bound-delay-imports', find_program('python3'),
+  args: [files('tests/pe_loader_variants.py'), memory_tests, memory_fixture, fixture, app, meson.current_build_dir() / 'zip-variants', memory_package, memory_dependency],
+  timeout: 90)
 catalog_tests = executable('catalog-tests', 'tests/catalog_tests.cpp', include_directories: inc, link_with: platform, dependencies: deps)
 test('core-discovery', catalog_tests, args: [fixture.full_path(), meson.current_build_dir() / 'catalog-test'], timeout: 30)
 test('content-first-startup', find_program('python3'),

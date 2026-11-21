@@ -1,6 +1,7 @@
 #include "IconsForkAwesome.h"
 #include "core.h"
 #include "core_catalog.h"
+#include "core_library.h"
 #include "core_options_window.h"
 #include "dsp_chain_window.h"
 #include "imgui.h"
@@ -168,7 +169,7 @@ int main() {
                 require_hardware = true;
             else if (arg == L"--help") {
                 append_log(
-                    "einweggerat [--context opengl|vulkan] [--core CORE.dll] [--rom CONTENT] [--frames N] "
+                    "einweggerat [--context opengl|vulkan] [--core CORE.dll|CORE.zip] [--rom CONTENT] [--frames N] "
                     "[--hidden] [--no-audio] [--verify-video] [--capture OUTPUT.bmp] [--capture-interval "
                     "N]\n");
                 LocalFree(argv);
@@ -263,7 +264,7 @@ int main() {
                 if (matches.empty()) {
                     failure =
                         "No discovered core supports " + path.extension().u8string() +
-                        ". Place a compatible core DLL beside the executable or in cores/, then rescan.";
+                        ". Place a compatible core DLL or ZIP beside the executable or in cores/, then rescan.";
                     core.log(failure + "\n");
                     if (hidden)
                         throw std::runtime_error(failure);
@@ -312,7 +313,7 @@ int main() {
                         auto ext = path.extension().u8string();
                         std::transform(ext.begin(), ext.end(), ext.begin(),
                                        [](unsigned char c) { return char(std::tolower(c)); });
-                        if (ext == ".dll")
+                        if (ext == ".dll" || CoreLibrary::archive_has_core(path))
                             dropped_core = path;
                         else if (dropped_content.empty())
                             dropped_content = path;
@@ -388,7 +389,7 @@ int main() {
                                      " libretro cores.\n");
                         }
                         if (ImGui::MenuItem("Load core manually...")) {
-                            picker.open("Load libretro core", ".dll", directory, false,
+                            picker.open("Load libretro core", "Core libraries{.dll,.zip}", directory, false,
                                         [&](const fs::path &path) {
                                             library = path;
                                             catalog.add(path);

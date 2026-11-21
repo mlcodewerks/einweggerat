@@ -1,0 +1,3 @@
+EXPORTS
+    fixture_forward=KERNEL32.GetCurrentProcessId @101
+    fixture_ordinal=fixture_catch @102 NONAME

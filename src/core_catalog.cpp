@@ -1,4 +1,5 @@
 #include "core_catalog.h"
+#include "core_library.h"
 #include <cctype>
 #include <set>
 #include <sstream>
@@ -50,51 +51,49 @@ bool CoreCatalog::add(const fs::path &path) {
     for (const auto &known : cores)
         if (same(known.path, path))
             return true;
-    if (lower(path.extension().u8string()) != ".dll")
+    if (!CoreLibrary::accepts(path))
         return false;
     const auto absolute = fs::absolute(path);
     // Probing must not replace callbacks in an executing core's loaded module.
     if (GetModuleHandleW(absolute.c_str()))
         return false;
-    HMODULE module = LoadLibraryExW(absolute.c_str(), nullptr,
-                                    LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-    if (!module) {
-        errors.push_back(path.u8string() + ": Windows loader error " + std::to_string(GetLastError()));
+    std::unique_ptr<CoreLibrary> module;
+    try { module = std::make_unique<CoreLibrary>(absolute); }
+    catch (const std::exception &e) {
+        errors.push_back(path.u8string() + ": " + e.what());
         return false;
     }
     struct Unload {
-        HMODULE module;
         ~Unload() {
             probing = nullptr;
-            FreeLibrary(module);
         }
-    } unload{module};
-    auto version =
-        reinterpret_cast<decltype(&retro_api_version)>(GetProcAddress(module, "retro_api_version"));
-    auto environment =
-        reinterpret_cast<decltype(&retro_set_environment)>(GetProcAddress(module, "retro_set_environment"));
-    auto info =
-        reinterpret_cast<decltype(&retro_get_system_info)>(GetProcAddress(module, "retro_get_system_info"));
-    const char *required[] = {"retro_init",
-                              "retro_deinit",
-                              "retro_run",
-                              "retro_load_game",
-                              "retro_unload_game",
-                              "retro_set_video_refresh",
-                              "retro_set_audio_sample",
-                              "retro_set_audio_sample_batch",
-                              "retro_set_input_poll",
-                              "retro_set_input_state"};
-    if (!version || !environment || !info)
-        return false;
-    for (const auto *symbol : required)
-        if (!GetProcAddress(module, symbol))
-            return false;
-    if (version() != RETRO_API_VERSION)
-        return false;
+    } unload;
     CoreInfo core;
     core.path = absolute;
     try {
+        auto version =
+            reinterpret_cast<decltype(&retro_api_version)>(module->symbol("retro_api_version"));
+        auto environment =
+            reinterpret_cast<decltype(&retro_set_environment)>(module->symbol("retro_set_environment"));
+        auto info =
+            reinterpret_cast<decltype(&retro_get_system_info)>(module->symbol("retro_get_system_info"));
+        const char *required[] = {"retro_init",
+                                  "retro_deinit",
+                                  "retro_run",
+                                  "retro_load_game",
+                                  "retro_unload_game",
+                                  "retro_set_video_refresh",
+                                  "retro_set_audio_sample",
+                                  "retro_set_audio_sample_batch",
+                                  "retro_set_input_poll",
+                                  "retro_set_input_state"};
+        if (!version || !environment || !info)
+            return false;
+        for (const auto *symbol : required)
+            if (!module->symbol(symbol))
+                return false;
+        if (version() != RETRO_API_VERSION)
+            return false;
         probing = &core;
         environment(metadata_environment);
         retro_system_info system{};
@@ -121,7 +120,7 @@ void CoreCatalog::scan(const fs::path &directory, const fs::path &active_core) {
             continue;
         for (fs::directory_iterator it(location, fs::directory_options::skip_permission_denied, ec), end;
              !ec && it != end; it.increment(ec)) {
-            if (!it->is_regular_file(ec) || lower(it->path().extension().u8string()) != ".dll")
+            if (!it->is_regular_file(ec) || !CoreLibrary::accepts(it->path()))
                 continue;
             if (same(it->path(), active_core)) {
                 for (const auto &known : previous)
